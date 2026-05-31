@@ -1,111 +1,46 @@
+:root {
+  /* to-do add colors */
+  --inc-factor: 0;
+}
 
-body {
+@layer base {
+  body {
     *, *::before, *::after {
-        all: unset;
-        box-sizing: border-box;
-        font: 25px/1.0786893258332633 sans-serif;
+      all: unset;
+      box-sizing: border-box;
+      font: 25px/1.0786893258332633 sans-serif;
     }
     background: #fff none;
     display: block;
-}
-
-::selection {
+  }
+  *[hidden] {
+    visibility: hidden !important;
+  }
+  .input-base[disabled], .input-base:has(input[disabled]) {
+    filter: grayscale(100%);
+    opacity: .5;
+    user-select: none;
+    cursor: default !important;
+  }
+  ::selection {
     background: #4bdcb0 none;
-}
-
-input[type=number], input[type=text] {
+  }
+  input[type=number], input[type=text] {
     appearance: textfield;
     font-weight: bold;
     caret-color: #4bdcb0;
-}
-button, input[type=button], input[type=reset], input[type=submit] {
+  }
+  button,
+  input[type=button],
+  input[type=reset],
+  input[type=submit] {
     cursor: pointer;
-}
-
-label {
+  }
+  label {
     cursor: default;
     text-align: center;
-}
-
-
-.button {
-    cursor: pointer;
-}
-
-.button:focus, .formField__input:focus, .formField__input:has(input:focus) {
-    outline: 2px solid #4bdcb0;
-    outline-offset: 2px;
-}
-
-.button--primary {
-    font-weight: bold;
-    height: 4rem;
-    background: #4bdcb0 none;
-    padding: .5rem;
-}
-
-.formField {
-    opacity: .5;
-}
-
-.formField:has(*:focus) {
-    opacity: 1;
-}
-
-.formField__input, .formField__input > input {
-    transition: .1s ease-out background-color, .1s ease-out caret-color;
-}
-
-.formField__input  > * {
-    width: 100%;
-}
-
-#root {
-    width: 100%;
-    max-width: 80vw;
-    min-height: 100vh;
-    display: block;
-    margin: 0 auto;
-    & > * {
-        width: inherit;
-        height: inherit;
-        min-height: inherit;
-        animation: .25s 1 ease-in flyIn;
-    }
-}
-
-
-.onboarding {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-flow: column nowrap;
-}
-.onboarding--logo {
-    --size: 380px;
-    display: block;
-    width: var(--size);
-    height: var(--size);
-}
-
-.form {
-    display: block;
-    padding: 0 2rem;
-}
-
-.formField {
-    display: flex;
-    flex-flow: column nowrap;
-    padding: 1rem 0;
-}
-
-.formField__label {
-    font-size: 22px;
-    font-weight: bold;
-}
-
-
-.button, .formField__input {
+  }
+  .input-base {
     border-radius: 9999px;
     border: 4px solid #000;
     text-align: center;
@@ -113,37 +48,103 @@ label {
     width: 100%;
     justify-content: center;
     align-items: center;
+    &:focus, &:has(input:focus) {
+      outline: 2px solid #4bdcb0;
+      outline-offset: 2px;
+    }
+  }
+  .button {
+    cursor: pointer;
+    &.primary {
+      font-weight: bold;
+      height: 4rem;
+      background: #4bdcb0 none;
+      padding: .5rem;
+    }
+  }
+  #root {
+    width: 100%;
+    max-width: 80vw;
+    min-height: 100vh;
+    display: block;
+    margin: 0 auto;
+    & > * {
+      width: inherit;
+      height: inherit;
+      min-height: inherit;
+      animation: .25s 1 ease-in fly-in;
+      padding: 4rem 0;
+    }
+  }
 }
 
-.onboarding__beginButton {
+.onboarding {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-flow: column nowrap;
+  overflow-x: hidden;
+}
+@scope (.onboarding) {
+  .logo {
+    --size: 380px;
+    display: block;
+    width: var(--size);
+    height: var(--size);
+  }
+  .begin-button {
     width: auto;
     padding-right: 4rem;
     padding-left: 4rem;
+  }
 }
 
-.formField__input, .formField__input > input {
+.form {
+  display: block;
+  padding: 1rem 2rem;
+}
+
+.form-field {
+  display: flex;
+  flex-flow: column nowrap;
+  padding: 1rem 0;
+  opacity: .5;
+  &:has(*:focus) {
+    opacity: 1;
+  }
+}
+@scope (.form-field) {
+  .label {
+    font-size: 22px;
     font-weight: bold;
-    font-size: 25px;
-    line-height: 1;
-}
-
-.formField__input {
+  }
+  .input {
     height: 4rem;
     display: flex;
     text-transform: capitalize;
     cursor: text;
-}
-
-.formField__input[type=date], .formField__input > input[type=date] {
-    text-transform: uppercase;
-}
-
-.formField__input > input[type=date] {
-    width: auto;
-    border-radius: 9999px;
-}
-
-.formField__incrementButton {
+    & > * {
+      width: 100%;
+    }
+    &, & > input {
+      font-weight: bold;
+      font-size: 25px;
+      line-height: 1;
+      transition: .1s ease-out background-color, .1s ease-out caret-color;
+    }
+    &[type=date], & > input[type=date] {
+      text-transform: uppercase;
+    }
+    & > input[type=date] {
+      width: auto;
+      border-radius: 9999px;
+    }
+    &.with-currency > input {
+      width: auto;
+    }
+  }
+  .increment-button {
+    flex: 0 0 auto;
     width: 3ch;
     height: 3ch;
     margin: .5rem;
@@ -152,91 +153,160 @@ label {
     user-select: none;
     border-radius: 100%;
     font-weight: bold;
-}
-
-.formField__input--withCurrency > input {
-    width: auto;
+  }
 }
 
 .results {
-    display: flex;
-    flex-flow: column nowrap;
-    padding: 1.6rem 0;
-}
-
-.results > * {
+  display: flex;
+  flex-flow: column nowrap;
+  > * {
     margin: 0 auto;
+  }
 }
 
-.results__heading, .results__subheading {
+@scope(.results) {
+  .heading, .subheading {
     font-size: 2.5rem;
     font-weight: bolder;
     text-align: center;
     display: block;
-}
-
-.results__subheading {
+  }
+  .subheading {
     font-size: 2rem;
     margin: 1rem 0;
-}
-
-.infoSection {
+  }
+  .section {
     width: 100%;
     margin-top: 2rem;
+  }
 }
 
-.infoSection__group {
+@scope (.section) {
+  .group {
     background: #BBF7F7 none;
     display: block;
     box-shadow: 0 4px 4px rgba(0,0,0,0.25);
     padding: 1.6rem;
     border-radius: 20px;
-    p {
+    &.loading {
+      position: relative;
+      overflow: hidden;
+      &::after {
+        content: 'Thinking…';
+        opacity: .5;
+        font-style: italic;
+        text-shadow: 2px 2px 0 #0004;
+        animation: 2.6s infinite ease loading-text;
+      }
+      &::before {
+        content: '';
+        pointer-events: none;
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        inset: 0;
         display: block;
-        margin: 1rem 0;
+        background: transparent linear-gradient(90deg, #fff0 0%, #0001 50%, #fff0 100%);
+        animation: 2.6s infinite ease loading;
+      }
     }
+    p {
+      display: block;
+      line-height: 1.6;
+      margin: 1rem 0;
+    }
+  }
 }
 
-.infoSection--enter {
-    animation: .5s 1 ease-in flyIn;
-    animation-fill-mode: backwards;
-    animation-delay: .5s;
+.section.trip-info {
+  display: inline-grid;
+  width: auto;
+  grid: 1fr 1fr / auto auto;
+  gap: 1rem;
+  &::after {
+    content: '';
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3rem;
+    background: transparent linear-gradient(0deg, #777 0%, #fff0 100%);
+    pointer-events: none;
+    z-index: 9999999;
+  }
+  @media (max-width: 400px) {
+    & {
+      display: flex;
+      flex-flow: column;
+    }
+  }
 }
 
-.tripInfo {
-    display: inline-grid;
-    width: auto;
-    grid: 1fr 1fr / auto auto;
-    gap: 1rem;
-}
-
-.tripInfo__date {
-    font-size: 20px;
+@scope (.trip-info) {
+  .date {
+    font-size: 18px;
     place-self: center;
-    text-align: center;
     border-radius: 9999px;
     padding: 1rem;
-}
-
-.tripInfo__group {
+  }
+  .group {
     display: block;
     &, * {
-        font-weight: bold;
+      font-weight: bold;
     }
-}
-
-.tripInfo__destination {
+  }
+  .destination {
     grid-column: 1 / span 2;
     text-align: center;
+  }
 }
 
-@keyframes flyIn {
-    from {
-        opacity: 0;
-        transform: translateY(1rem);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.token-in {
+  animation: calc(var(--inc-factor) * .3s) 1 ease token-in;
+}
+
+.fly-in {
+  animation: 2s 1 ease-out fly-in;
+  animation-fill-mode: forwards;
+}
+
+@keyframes token-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@keyframes fly-in {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes loading {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes loading-text {
+  0% {
+    opacity: .25;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: .25;
+  }
 }
