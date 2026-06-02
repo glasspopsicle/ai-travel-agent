@@ -50,10 +50,11 @@
 
     &:focus, &:has(> input:focus) {
       outline: 2px solid var(--primary-bg);
+      outline-offset: 1px;
     }
   }
 
-  .input-base[disabled], .input-base:has(input[disabled]), label:has(+ input[disabled]) {
+  .input-base[disabled], .input-base:has(input[disabled]), label:has(+ [disabled]), label:has(+ * [disabled]) {
     filter: grayscale(1);
     opacity: .5;
     user-select: none;
@@ -334,6 +335,7 @@
   .destination {
     grid-column: 1 / span 2;
     text-align: center;
+    text-transform: capitalize;
   }
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "ai-travel-agent-server",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

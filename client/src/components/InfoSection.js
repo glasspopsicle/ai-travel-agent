@@ -39,7 +39,7 @@ export function InfoSection({ title, id, hasAction }) {
       "flying_to": flyingTo,
       "from_date": fromDate,
       "to_date": toDate,
-      "budget": budget,
+      "budget": '$' + budget,
     };
     const prompt = JSON.stringify({
       user_id: USER_ID,

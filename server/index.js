@@ -3,22 +3,38 @@ import * as http from 'node:http';
 import ollama, { Ollama } from 'ollama';
 import * as process from 'node:process';
 import * as dotenv from 'dotenv';
+import updateFromArgv from './update-from-argv.js';
 
-const PORT = 8082;
-const DEBUG = false;
-const USE_WEB = false;
+const args = {
+  model: undefined,
+  'show-thinking': undefined,
+  'use-web': undefined,
+};
 
-// Gets the OLLAMA_API_KEY from ~/.env
+try {
+  updateFromArgv(args);
+} catch (err) {
+  console.error(err.message);
+}
+
+const MODEL =  String(args.model ?? 'qwen3.5:9b');
+const HOST = process.env.REACT_APP_WS_HOST || 'localhost';
+const PORT = process.env.REACT_APP_WS_PORT || 8081;
+const SHOW_THINKING = args['show-thinking'] != null ? Boolean('yes' === args['show-thinking']) : true;
+const USE_WEB = args['use-web'] != null ? Boolean('yes' === args['use-web']) : false;
+const THINKING = USE_WEB; // Enable thinking if web tool calls available
+
+// Gets the OLLAMA_API_KEY from ~/.env if defined there
 dotenv.config({ quiet: true });
 
 const CANCEL_REQUESTS_SET = new Set();
-const { webSearch, webFetch } = new Ollama();
+const client = new Ollama();
 
 const TOOLS = {
   'web_search': {
     type: 'function',
     method: async ({ query }) => {
-      const res = await webSearch({ query });
+      const res = await client.webSearch({ query });
       return JSON.stringify(res);
     },
     function: {
@@ -37,7 +53,7 @@ const TOOLS = {
   'web_fetch': {
     type: 'function',
     method: async ({ url }) => {
-      const res = await webFetch({ url });
+      const res = await client.webFetch({ url });
       return JSON.stringify(res);
     },
     function: {
@@ -55,14 +71,14 @@ const TOOLS = {
 };
 
 const CHAT_PARAMS = {
-  model: 'qwen3.5:9b',
-  think: USE_WEB,
+  model: MODEL,
+  think: THINKING,
   tools: USE_WEB ? Object.values(TOOLS) : undefined,
   options: {
     num_ctx: USE_WEB ? 65536 : 8192,
     top_p: 0.9,
     top_k: 5,
-    temperature: 0.4,
+    temperature: 0.8,
   }
 };
 
@@ -81,7 +97,7 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
     let thinking, content, toolCalls = [], finishedThinking = false;
     for await (const chunk of stream) {
       if (chunk.message.thinking) {
-        if (DEBUG) {
+        if (SHOW_THINKING) {
           process.stdout.write(chunk.message.thinking);
         }
         thinking += chunk.message.thinking;
@@ -89,7 +105,7 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
       if (chunk.message.content) {
         if (finishedThinking === false) {
           finishedThinking = true;
-          if (DEBUG) {
+          if (SHOW_THINKING) {
             process.stdout.write('\nEOT\n');
           }
         }
@@ -113,14 +129,14 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
     } else {
       break;
     }
-    if (DEBUG) {
+    if (SHOW_THINKING) {
       console.log();
     }
     for (const toolCall of toolCalls) {
       if (toolCall.function.name in TOOLS) {
         let res;
         try {
-          if (DEBUG) {
+          if (SHOW_THINKING) {
             console.log(`\nCalling ${toolCall.function.name}`);
             console.log(toolCall.function.arguments);
           }
@@ -129,6 +145,7 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
           }
           res = await TOOLS[toolCall.function.name].method(toolCall.function.arguments);
         } catch (ex) {
+          console.error(ex.message);
           res = JSON.stringify(ex);
         } finally {
           messages.push({
@@ -199,15 +216,15 @@ const httpServer = http.createServer((req, res) => {
 const socketServer = new WebSocketServer({ server: httpServer });
 
 httpServer.listen(PORT, () => {
-  console.log(`Server listening on ws://localhost:${PORT}`);
+  console.log(`Server listening on ws://${HOST}:${PORT}`);
 });
 
 socketServer.on('connection', socket => {
-  if (DEBUG) {
+  if (SHOW_THINKING) {
     console.log('Client connected');
   }
   socket.on('message', async data => {
-    if (DEBUG) {
+    if (SHOW_THINKING) {
       console.log(`Received: ${data}`);
     }
     try {
@@ -228,7 +245,7 @@ socketServer.on('connection', socket => {
       }
       if (SPECIALIZED_PROMPT_IDS.includes(promptId)) {
         await agent(userId, computeSystemPrompt(promptId), JSON.stringify(prompt), (msg) => {
-          process.stdout.write(msg);
+          if (SHOW_THINKING) process.stdout.write(msg);
           socket.send(JSON.stringify({ 'user_id': userId, [promptId]: msg }));
         });
       }
@@ -240,6 +257,6 @@ socketServer.on('connection', socket => {
   });
 
   socket.on('close', () => {
-    console.log('Client disconnected');
+    if (SHOW_THINKING) console.log('Client disconnected');
   });
 });

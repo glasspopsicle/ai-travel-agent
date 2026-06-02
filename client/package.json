@@ -1,5 +1,5 @@
 {
-  "name": "ai_travel_agent",
+  "name": "ai-travel-agent-client",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
