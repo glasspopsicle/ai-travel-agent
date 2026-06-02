@@ -1,21 +1,24 @@
-import * as ws from 'ws';
-import * as http from 'http';
+import { WebSocketServer } from 'ws';
+import * as http from 'node:http';
 import ollama, { Ollama } from 'ollama';
 import * as process from 'node:process';
 import * as dotenv from 'dotenv';
 
+const PORT = 8082;
 const DEBUG = false;
-const USE_WEB = true;
+const USE_WEB = false;
 
-const ollamaClient = new Ollama();
-
+// Gets the OLLAMA_API_KEY from ~/.env
 dotenv.config({ quiet: true });
 
-const toolsObj = {
+const CANCEL_REQUESTS_SET = new Set();
+const { webSearch, webFetch } = new Ollama();
+
+const TOOLS = {
   'web_search': {
     type: 'function',
     method: async ({ query }) => {
-      const res = await ollamaClient.webSearch({ query });
+      const res = await webSearch({ query });
       return JSON.stringify(res);
     },
     function: {
@@ -34,7 +37,7 @@ const toolsObj = {
   'web_fetch': {
     type: 'function',
     method: async ({ url }) => {
-      const res = await ollamaClient.webFetch({ url });
+      const res = await webFetch({ url });
       return JSON.stringify(res);
     },
     function: {
@@ -51,13 +54,19 @@ const toolsObj = {
   },
 };
 
-const chatParams = {
-  model: USE_WEB ? 'travel_agent' : 'travel_agent_offline',
+const CHAT_PARAMS = {
+  model: 'qwen3.5:9b',
   think: USE_WEB,
-  tools: USE_WEB ? Object.values(toolsObj) : undefined,
+  tools: USE_WEB ? Object.values(TOOLS) : undefined,
+  options: {
+    num_ctx: USE_WEB ? 65536 : 8192,
+    top_p: 0.9,
+    top_k: 5,
+    temperature: 0.4,
+  }
 };
 
-async function agent(systemPrompt, userPrompt, onResponse = null) {
+async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
   const messages = [];
   messages.push(
     { role: 'system', content: systemPrompt },
@@ -65,26 +74,33 @@ async function agent(systemPrompt, userPrompt, onResponse = null) {
   );
   while (true) {
     const stream = await ollama.chat({
-      ...chatParams,
+      ...CHAT_PARAMS,
       stream: true,
       messages,
     });
     let thinking, content, toolCalls = [], finishedThinking = false;
     for await (const chunk of stream) {
       if (chunk.message.thinking) {
-        process.stdout.write(chunk.message.thinking);
+        if (DEBUG) {
+          process.stdout.write(chunk.message.thinking);
+        }
         thinking += chunk.message.thinking;
       }
       if (chunk.message.content) {
         if (finishedThinking === false) {
           finishedThinking = true;
-          process.stdout.write('\nEOT\n');
+          if (DEBUG) {
+            process.stdout.write('\nEOT\n');
+          }
         }
         content += chunk.message.content;
         onResponse && onResponse(chunk.message.content);
       }
       if (chunk.message.tool_calls?.length > 0) {
         toolCalls.push(...chunk.message.tool_calls);
+      }
+      if (CANCEL_REQUESTS_SET.has(userId)) {
+        return;
       }
     }
     if (thinking || content || toolCalls.length > 0) {
@@ -97,13 +113,21 @@ async function agent(systemPrompt, userPrompt, onResponse = null) {
     } else {
       break;
     }
+    if (DEBUG) {
+      console.log();
+    }
     for (const toolCall of toolCalls) {
-      if (toolCall.function.name in toolsObj) {
+      if (toolCall.function.name in TOOLS) {
         let res;
         try {
-          console.log(`Calling ${toolCall.function.name}`);
-          console.log(toolCall.function.arguments);
-          res = await toolsObj[toolCall.function.name].method(toolCall.function.arguments);
+          if (DEBUG) {
+            console.log(`\nCalling ${toolCall.function.name}`);
+            console.log(toolCall.function.arguments);
+          }
+          if (CANCEL_REQUESTS_SET.has(userId)) {
+            return;
+          }
+          res = await TOOLS[toolCall.function.name].method(toolCall.function.arguments);
         } catch (ex) {
           res = JSON.stringify(ex);
         } finally {
@@ -125,23 +149,31 @@ async function agent(systemPrompt, userPrompt, onResponse = null) {
     }
   }
 }
+const SPECIALIZED_PROMPTS = {
+  'activities': `
+(You may list one to four activities.)
+Message: Here are some activities you can try: 
+- ___________________________
+- ___________________________
+- ___________________________
+DONE
+`,
+  'weather': `
+Message: You can expect the weather in ________ to be ______________. Low will be __________ and high will be __________.
+DONE
+`,
+  'flights': `
+Message: The best option for you is with ____________. ### URL_for_booking_for_flight: ______________________
+DONE
+`,
+  'hotel': `
+Message: We recommend you stay at the ________ in _________. ### URL_for_booking_for_hotel: ______________________
+DONE
+`,
+};
+const SPECIALIZED_PROMPT_IDS = Object.keys(SPECIALIZED_PROMPTS);
+
 function computeSystemPrompt(specializedPromptId = null) {
-  const specializedPrompts = {
-    'weather': `
-Message: You can expect the weather to be ______________. Low will be __________ and high will be __________.
-DONE
-`,
-    'flights': `
-Message: The best option for you is with ____________. ###
-URL_for_booking_for_flight: ______________________
-DONE
-`,
-    'hotel': `
-Message: We recommend you stay at the ________ in _________. ###
-URL_for_booking_for_hotel: ______________________
-DONE
-`,
-  };
   return `
 You will receive input as JSON from the user.
 The user is planning to travel, you will be given the user constraints in JSON in the following keys:
@@ -151,49 +183,53 @@ The user is planning to travel, you will be given the user constraints in JSON i
 - \`from_date\`,
 - \`to_date\`, and, lastly,
 - \`budget\`.
-The user expects you to reply strictly in the following format:
-  ${specializedPrompts[specializedPromptId] || ''}
-${USE_WEB ? "" : "You have only 1 minute at most! You may hallucinate your response. :)"}
+The user expects you to reply strictly in the following format in the case of a successful query:
+${SPECIALIZED_PROMPTS[specializedPromptId] || ''}
+Otherwise, strictly use the following format:
+Message: Sorry, but ________________________________.
+DONE
 `;
 }
 
-const inputPrompt = {
-  "number_of_travellers": 1,
-  "flying_from": "New York",
-  "flying_to": "Paris",
-  "from_date": "2026-11-24",
-  "to_date": "2026-12-05",
-  "budget": "$500",
-};
-if (DEBUG) {
-  await agent(computeSystemPrompt('weather'), JSON.stringify(inputPrompt), (msg) => process.stdout.write(msg));
-  await agent(computeSystemPrompt('flights'), JSON.stringify(inputPrompt), (msg) => process.stdout.write(msg));
-  await agent(computeSystemPrompt('hotel'), JSON.stringify(inputPrompt), (msg) => process.stdout.write(msg));
-  process.exit(0);
-}
-const port = 8082;
-
 const httpServer = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('WebSocket server running');
+  res.end();
 });
 
-const wsServer = new ws.WebSocketServer({ server: httpServer });
+const socketServer = new WebSocketServer({ server: httpServer });
 
-httpServer.listen(port, () => {
-  console.log(`Server listening on ws://localhost:${port}`);
+httpServer.listen(PORT, () => {
+  console.log(`Server listening on ws://localhost:${PORT}`);
 });
 
-wsServer.on('connection', socket => {
-  console.log('Client connected');
+socketServer.on('connection', socket => {
+  if (DEBUG) {
+    console.log('Client connected');
+  }
   socket.on('message', async data => {
-    console.log(`Received: ${data}`);
+    if (DEBUG) {
+      console.log(`Received: ${data}`);
+    }
     try {
-      const { prompt_id: promptId, prompt_message: promptJSON } = JSON.parse(data);
-      if (['weather', 'flights', 'hotel'].includes(promptId)) {
-        await agent(computeSystemPrompt(promptId), JSON.stringify(promptJSON), (msg) => {
+      const { user_id: userId, prompt_id: promptId, prompt_message: prompt, action } = JSON.parse(data);
+      if (action === 'CANCEL') {
+        CANCEL_REQUESTS_SET.add(userId);
+        return;
+      } else if (action === 'INIT') {
+        CANCEL_REQUESTS_SET.delete(userId);
+        socket.send(JSON.stringify({ 'user_id': userId, 'state': 'OK' }));
+        return;
+      }
+      if ('budget' in prompt) {
+        const budget = prompt.budget.trim();
+        if (budget === '$' || isNaN(budget?.replace('$', ''))) {
+          prompt.budget = 'Infinite';
+        }
+      }
+      if (SPECIALIZED_PROMPT_IDS.includes(promptId)) {
+        await agent(userId, computeSystemPrompt(promptId), JSON.stringify(prompt), (msg) => {
           process.stdout.write(msg);
-          socket.send(JSON.stringify({ [promptId]: msg }));
+          socket.send(JSON.stringify({ 'user_id': userId, [promptId]: msg }));
         });
       }
     } catch (ex) {
