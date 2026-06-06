@@ -21,9 +21,9 @@ export function InfoSection({ title, id, hasAction }) {
     }
     const conn = CHAT_CONNECTION;
     const addBodyTokenEl = (token, counter) => {
-      return (prev) => 
-        (<>{prev}<span className="token-in"
-          style={{ '--inc-factor': counter }}>{token}</span></>);
+      return (prev) =>
+      (<>{prev}<span className="token-in"
+        style={{ '--inc-factor': counter }}>{token}</span></>);
     };
     const addToken = token => {
       return (prev) => prev + token;
@@ -54,19 +54,19 @@ export function InfoSection({ title, id, hasAction }) {
       className="section"
     >
       <h2 className="subheading">{title}</h2>
-        <div className={`group${!body ? ' loading' : ''}`}>
-          <p>{body ? body : (<>&nbsp;</>)}</p>
-          {hasAction && <a
-            hidden={!bookAction}
-            aria-hidden={bookAction ? "false" : "true"}
-            href={bookAction}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`input-base button primary${bookAction ? ' fly-in' : ''}`}
-          >
-            Book
-          </a>}
-        </div>
+      <div className={`group${!body ? ' loading' : ''}`}>
+        <p>{body ? body : (<>&nbsp;</>)}</p>
+        {hasAction && <a
+          hidden={!bookAction}
+          aria-hidden={bookAction ? "false" : "true"}
+          href={bookAction}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`input-base button primary${bookAction ? ' fly-in' : ''}`}
+        >
+          Book
+        </a>}
+      </div>
     </section>
   );
 }

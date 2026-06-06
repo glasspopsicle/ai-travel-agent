@@ -52,19 +52,19 @@ export default function FormPage({ onSubmit }) {
         setValue={setNumTravellers}
         id="numTravelers"
       >
-      <NumberInput
-        autoFocus
-        disabled={isFormDisabled}
-        tabIndex={1}
-        min={1}
-        specialControls={"increment-buttons"}
-      />
+        <NumberInput
+          autoFocus
+          disabled={isFormDisabled}
+          tabIndex={1}
+          min={1}
+          specialControls={"increment-buttons"}
+        />
       </FormField>
       <FormField value={flyingFrom} setValue={setFlyingFrom} required label="Flying From" id="flyingFrom">
-        <input disabled={isFormDisabled} tabIndex={2} type="text" />
+        <input autoComplete={'off'} disabled={isFormDisabled} tabIndex={2} type="text" />
       </FormField>
       <FormField value={flyingTo} setValue={setFlyingTo} required label="Flying To" id="flyingTo">
-        <input disabled={isFormDisabled} tabIndex={3} type="text" />
+        <input autoComplete={'off'} disabled={isFormDisabled} tabIndex={3} type="text" />
       </FormField>
       <FormField value={fromDate} setValue={setFromDate} required label="From Date" id="fromDate">
         <DateInput disabled={isFormDisabled} tabIndex={4} />
@@ -83,7 +83,7 @@ export default function FormPage({ onSubmit }) {
         <NumberInput disabled={isFormDisabled} specialControls="currency" min={0} tabIndex={6} />
       </FormField>
       <button disabled={isFormDisabled} type="submit" className="input-base primary button">
-      {isFormDisabled ? 'One Sec…' : 'Plan my Trip!'}
+        {isFormDisabled ? 'One Sec…' : 'Plan my Trip!'}
       </button>
     </form>
   );
