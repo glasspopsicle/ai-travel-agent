@@ -4,6 +4,7 @@ import ollama from 'ollama';
 import tools from './tools.js';
 import * as process from 'node:process';
 import updateFromArgv from './update-from-argv.js';
+import modelConfig from './model.config.js';
 
 const args = {
   model: undefined,
@@ -30,12 +31,7 @@ const CHAT_PARAMS = {
   model: MODEL,
   think: THINKING,
   tools: USE_WEB ? Object.values(tools) : undefined,
-  options: {
-    num_ctx: USE_WEB ? 65536 : 8192,
-    top_p: 0.9,
-    top_k: 5,
-    temperature: 0.3,
-  }
+  options: modelConfig
 };
 
 async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
