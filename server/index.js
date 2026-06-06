@@ -1,8 +1,8 @@
 import { WebSocketServer } from 'ws';
 import * as http from 'node:http';
-import ollama, { Ollama } from 'ollama';
+import ollama from 'ollama';
+import tools from './tools.js';
 import * as process from 'node:process';
-import * as dotenv from 'dotenv';
 import updateFromArgv from './update-from-argv.js';
 
 const args = {
@@ -17,68 +17,24 @@ try {
   console.error(err.message);
 }
 
-const MODEL =  String(args.model ?? 'qwen3.5:9b');
-const HOST = process.env.REACT_APP_WS_HOST || 'localhost';
-const PORT = process.env.REACT_APP_WS_PORT || 8081;
-const SHOW_THINKING = args['show-thinking'] != null ? Boolean('yes' === args['show-thinking']) : true;
-const USE_WEB = args['use-web'] != null ? Boolean('yes' === args['use-web']) : false;
+const MODEL = String(args.model ?? 'qwen3.5:9b');
+const HOST = process.env.REACT_APP_WS_HOST ?? 'localhost';
+const PORT = process.env.REACT_APP_WS_PORT ?? 8081;
+const SHOW_THINKING = args['show-thinking'] != null ? args['show-thinking'] : true;
+const USE_WEB = args['use-web'] != null ? args['use-web'] : true;
 const THINKING = USE_WEB; // Enable thinking if web tool calls available
 
-// Gets the OLLAMA_API_KEY from ~/.env if defined there
-dotenv.config({ quiet: true });
-
 const CANCEL_REQUESTS_SET = new Set();
-const client = new Ollama();
-
-const TOOLS = {
-  'web_search': {
-    type: 'function',
-    method: async ({ query }) => {
-      const res = await client.webSearch({ query });
-      return JSON.stringify(res);
-    },
-    function: {
-      name: 'web_search',
-      parameters: {
-        type: 'object',
-        required: ['query'],
-        properties: {
-          'query': {
-            type: 'string',
-          },
-        },
-      },
-    },
-  },
-  'web_fetch': {
-    type: 'function',
-    method: async ({ url }) => {
-      const res = await client.webFetch({ url });
-      return JSON.stringify(res);
-    },
-    function: {
-      name: 'web_fetch',
-      parameters: {
-        type: 'object',
-        properties: {
-          'url': {
-            type: 'string',
-          },
-        },
-      },
-    },
-  },
-};
 
 const CHAT_PARAMS = {
   model: MODEL,
   think: THINKING,
-  tools: USE_WEB ? Object.values(TOOLS) : undefined,
+  tools: USE_WEB ? Object.values(tools) : undefined,
   options: {
     num_ctx: USE_WEB ? 65536 : 8192,
     top_p: 0.9,
     top_k: 5,
-    temperature: 0.8,
+    temperature: 0.3,
   }
 };
 
@@ -133,7 +89,7 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
       console.log();
     }
     for (const toolCall of toolCalls) {
-      if (toolCall.function.name in TOOLS) {
+      if (toolCall.function.name in tools) {
         let res;
         try {
           if (SHOW_THINKING) {
@@ -143,7 +99,7 @@ async function agent(userId, systemPrompt, userPrompt, onResponse = null) {
           if (CANCEL_REQUESTS_SET.has(userId)) {
             return;
           }
-          res = await TOOLS[toolCall.function.name].method(toolCall.function.arguments);
+          res = await tools[toolCall.function.name].method(toolCall.function.arguments);
         } catch (ex) {
           console.error(ex.message);
           res = JSON.stringify(ex);
@@ -208,7 +164,7 @@ DONE
 `;
 }
 
-const httpServer = http.createServer((req, res) => {
+const httpServer = http.createServer((_, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end();
 });
@@ -220,13 +176,9 @@ httpServer.listen(PORT, () => {
 });
 
 socketServer.on('connection', socket => {
-  if (SHOW_THINKING) {
-    console.log('Client connected');
-  }
+  console.log('Client connected');
   socket.on('message', async data => {
-    if (SHOW_THINKING) {
-      console.log(`Received: ${data}`);
-    }
+    console.log(`Received: ${data}`);
     try {
       const { user_id: userId, prompt_id: promptId, prompt_message: prompt, action } = JSON.parse(data);
       if (action === 'CANCEL') {
@@ -251,12 +203,11 @@ socketServer.on('connection', socket => {
       }
     } catch (ex) {
       // TO-DO handle bad input
-      console.log(ex);
-      console.assert(false);
+      console.error(ex.message);
     }
   });
 
   socket.on('close', () => {
-    if (SHOW_THINKING) console.log('Client disconnected');
+    console.log('Client disconnected');
   });
 });

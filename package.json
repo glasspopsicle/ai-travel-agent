@@ -11,10 +11,15 @@
     "start:client": "npm run start --workspace=client"
   },
   "devDependencies": {
+    "concurrently": "^10.0.3",
     "stylelint": "^17.12.0",
     "stylelint-config-standard": "^40.0.0"
   },
   "engines": {
     "node": ">= 22.15"
+  },
+  "allowScripts": {
+    "core-js": false,
+    "core-js-pure": false
   }
 }
