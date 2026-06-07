@@ -1,4 +1,11 @@
 # AI Travel Agent (Ollama Implementation)
+
+
+
+https://github.com/user-attachments/assets/09e2d66c-de61-4bdf-8ab7-5b61c01674ae
+
+
+
 This project is based on the "AI Travel Agent" solo project from the Scrimba course Learn AI Agents.
 It replaces direct OpenAI API calls (and other API calls) with a custom implementation using the Ollama API and a WebSocket connection.
 
